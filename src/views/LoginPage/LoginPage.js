@@ -18,6 +18,9 @@ import Loading from "react-loading-spinkit";
 import SweetAlert from "react-bootstrap-sweetalert";
 
 import api from "../../config/api";
+import { shuffle } from "./utils/randomize";
+import { storeItems, getStoredItems } from "./utils/storeItems";
+
 import image from "assets/img/background-initialscreens.jpg";
 
 class LoginPage extends Component {
@@ -28,8 +31,11 @@ class LoginPage extends Component {
     step: 1,
     messageError: "",
     showAlert: false,
+    messageAlert: "",
     showLoading: true,
-    locations: []
+    last_place: 3,
+    locations_all: [],
+    locations_partial: []
   };
 
   componentDidMount = async () => {
@@ -37,6 +43,7 @@ class LoginPage extends Component {
     const { step } = this.state;
 
     let id = localStorage.getItem("user");
+    // let id = 1;
 
     if (!id) {
       const email = `${Date.now()}@gmail.com`;
@@ -49,55 +56,91 @@ class LoginPage extends Component {
     }
 
     if (step === 1) {
-      const locations = await api.get("evaluation");
-      const new_locations = JSON.parse(locations.data);
-      const location_with_rating = [];
-      new_locations.forEach(loc =>
-        location_with_rating.push({
-          ...loc,
-          placeId: loc.id,
-          rate_user: 0
-        })
-      );
-      this.setState({ showLoading: false, locations: location_with_rating });
+      const result = await api.get("evaluation");
+      const locations = JSON.parse(result.data);
+
+      const locations_partial_with_rating = [];
+
+      const new_locations = locations.map(loc => {
+        return { ...loc, placeId: loc.id, rate_user: 0 };
+      });
+
+      const locations_with_rating = shuffle(new_locations);
+
+      for (let i = 0; i < 4; i++) {
+        locations_partial_with_rating.push(locations_with_rating[i]);
+      }
+
+      this.setState({
+        showLoading: false,
+        locations_all: locations_with_rating,
+        locations_partial: locations_partial_with_rating
+      });
     }
   };
 
   changeStarRating = (rate, id) => {
-    const { locations } = this.state;
-    locations.forEach(loc => {
+    const { locations_partial } = this.state;
+    locations_partial.forEach(loc => {
       if (loc.placeId === id) {
         loc.rate_user = rate;
       }
     });
-    this.setState({ locations: locations });
+    this.setState({ locations_partial: locations_partial });
+  };
+
+  changePlace = id => {
+    const { locations_partial, locations_all, last_place } = this.state;
+
+    if (last_place < locations_all.length) {
+      const locations = locations_partial.filter(loc => id !== loc.placeId);
+
+      const newLocations = [...locations, locations_all[last_place + 1]];
+
+      this.setState({
+        locations_partial: newLocations,
+        last_place: last_place + 1
+      });
+
+      storeItems(id);
+    } else {
+      this.setState({
+        showAlert: true,
+        messageAlert: "Não temos mais locais na base de dados"
+      });
+    }
   };
 
   submitRatings = async () => {
-    const { step, locations } = this.state;
+    const { step, locations_partial } = this.state;
 
     let isValid = 1;
 
-    locations.forEach(loc => {
-      if (loc.rating === 0) {
+    locations_partial.forEach(loc => {
+      if (loc.rate_user === 0) {
         isValid = 0;
       }
     });
 
     if (!isValid) {
-      this.setState({ showAlert: true });
+      this.setState({
+        showAlert: true,
+        messageAlert: "Você precisa avaliar todos os locais para continuar"
+      });
     }
 
     if (step === 1 && isValid) {
       const id = localStorage.getItem("user");
       const new_locations = [];
-      locations.forEach(loc =>
+      locations_partial.forEach(loc => {
+        storeItems(loc.id);
+
         new_locations.push({
           userId: +id,
           placeId: loc.id,
           rate: loc.rate_user
-        })
-      );
+        });
+      });
 
       this.setState({ message: "Aguarde um pouco", showLoading: true });
 
@@ -105,19 +148,36 @@ class LoginPage extends Component {
         ratings: new_locations
       });
 
-      const est_locations = await api.get(`evaluation/${id}`);
+      const result = await api.get(`evaluation/${id}`);
+
+      const previousItems = getStoredItems();
+
+      const locations = result.data.filter(loc => {
+        return !previousItems.includes(loc.placeId);
+      });
+
+      const locations_partial_with_rating = [];
+
+      const locations_with_rating = shuffle(locations);
+
+      for (let i = 0; i < 4; i++) {
+        locations_partial_with_rating.push(locations_with_rating[i]);
+      }
+
       this.setState({
         message: "Estamos quase lá! Por favor, avalie só mais alguns locais!",
         step: 2,
         showLoading: false,
-        locations: est_locations.data
+        last_place: 3,
+        locations_all: locations_with_rating,
+        locations_partial: locations_partial_with_rating
       });
     }
 
     if (step === 2 && isValid) {
       this.setState({ message: "Aguarde um pouco", showLoading: true });
       await api.post("suggestion", {
-        ratings: locations
+        ratings: locations_partial
       });
 
       this.setState({
@@ -133,12 +193,14 @@ class LoginPage extends Component {
     const { classes } = this.props;
     const {
       message,
-      locations,
+      locations_partial,
       step,
       messageButton,
       showLoading,
       messageError,
-      showAlert
+      showAlert,
+      cardAnimaton,
+      messageAlert
     } = this.state;
     return (
       <div>
@@ -159,7 +221,7 @@ class LoginPage extends Component {
           confirmBtnText="Entendi"
           onConfirm={() => this.setState({ showAlert: false })}
         >
-          Você precisa avalisar todos os locais para continuar
+          {messageAlert}
         </SweetAlert>
         <div
           className={classes.pageHeader}
@@ -172,7 +234,7 @@ class LoginPage extends Component {
           <div className={classes.container}>
             <GridContainer justify="center">
               <GridItem xs={12} sm={12} md={12}>
-                <Card className={classes[this.state.cardAnimaton]}>
+                <Card className={classes[cardAnimaton]}>
                   <CardHeader color="info" className={classes.cardHeader}>
                     <h4>
                       {message}
@@ -198,7 +260,7 @@ class LoginPage extends Component {
                                 textAlign: "center",
                                 marginBottom: "20px",
                                 fontWeight: "bold",
-                                fontSize: "35px",
+                                fontSize: "25px",
                                 color: messageError ? "#ff0000" : "#00ADC0"
                               }}
                             >
@@ -206,7 +268,7 @@ class LoginPage extends Component {
                             </div>
                           </GridItem>
                         ) : (
-                          locations.map(loc => (
+                          locations_partial.map(loc => (
                             <GridItem xs={12} sm={12} md={6} key={loc.placeId}>
                               <Card>
                                 <CardBody>
@@ -228,10 +290,23 @@ class LoginPage extends Component {
                                     fullSymbol="fas fa-star fa-2x"
                                     style={{ color: "#FF982A" }}
                                     initialRating={loc.rate_user}
+                                    fractions={2}
                                     onChange={rate =>
                                       this.changeStarRating(rate, loc.placeId)
                                     }
                                   />
+                                  <div style={{ marginTop: "10px" }}>
+                                    <Button
+                                      color="info"
+                                      size="sm"
+                                      onClick={() =>
+                                        this.changePlace(loc.placeId)
+                                      }
+                                    >
+                                      Não possuo informações suficientes <br />{" "}
+                                      para fazer uma avaliação desse local
+                                    </Button>
+                                  </div>
                                 </CardBody>
                               </Card>
                             </GridItem>
