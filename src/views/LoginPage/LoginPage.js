@@ -42,8 +42,8 @@ class LoginPage extends Component {
     setTimeout(() => this.setState({ cardAnimaton: "" }), 700);
     const { step } = this.state;
 
+    localStorage.removeItem("items");
     let id = localStorage.getItem("user");
-    // let id = 1;
 
     if (!id) {
       const email = `${Date.now()}@gmail.com`;
@@ -92,7 +92,7 @@ class LoginPage extends Component {
   changePlace = id => {
     const { locations_partial, locations_all, last_place } = this.state;
 
-    if (last_place < locations_all.length) {
+    if (last_place < locations_all.length - 4) {
       const locations = locations_partial.filter(loc => id !== loc.placeId);
 
       const newLocations = [...locations, locations_all[last_place + 1]];
@@ -186,6 +186,7 @@ class LoginPage extends Component {
         showLoading: false
       });
       localStorage.removeItem("user");
+      localStorage.removeItem("items");
     }
   };
 
