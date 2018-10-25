@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://recsysapi.herokuapp.com/"
+  baseURL: "https://recsysapi.herokuapp.com/"
 });
 
 export default api;
