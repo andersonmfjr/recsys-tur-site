@@ -296,16 +296,22 @@ class LoginPage extends Component {
                                       this.changeStarRating(rate, loc.placeId)
                                     }
                                   />
-                                  <div style={{ marginTop: "10px" }}>
+                                  <div
+                                    style={{ marginTop: "10px", width: "100%" }}
+                                  >
                                     <Button
                                       color="info"
                                       size="sm"
+                                      style={{ width: "85%" }}
                                       onClick={() =>
                                         this.changePlace(loc.placeId)
                                       }
                                     >
-                                      Não possuo informações suficientes <br />{" "}
-                                      para fazer uma avaliação desse local
+                                      <p style={{ fontSize: "0.9em" }}>
+                                        Não possuo informações suficientes{" "}
+                                        <br />
+                                        para fazer uma avaliação desse local
+                                      </p>
                                     </Button>
                                   </div>
                                 </CardBody>
