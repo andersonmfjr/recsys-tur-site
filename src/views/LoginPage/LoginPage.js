@@ -243,10 +243,6 @@ class LoginPage extends Component {
                         text=" :grin:"
                         onlyEmojiClassName="make-emojis-large"
                       />
-                      <Emojione
-                        text=" :grin:"
-                        onlyEmojiClassName="make-emojis-large"
-                      />
                     </h4>
                   </CardHeader>
                   <CardBody>
@@ -308,9 +304,10 @@ class LoginPage extends Component {
                                       }
                                     >
                                       <p style={{ fontSize: "0.9em" }}>
-                                        Não possuo informações suficientes{" "}
                                         <br />
-                                        para fazer uma avaliação desse local
+                                        Não sei avaliar.{" "}
+                                        <br />
+                                        Pular para o próximo!
                                       </p>
                                     </Button>
                                   </div>
